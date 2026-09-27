@@ -25,7 +25,8 @@
 #            search (Step 1). Step 0's D2 check always uses a fixed 5,000
 #            replicates, independent of this argument, since it is cheap
 #            (no MCMC) and only needs to establish a ballpark margin, not
-#            the same precision as the main calibration.
+#            the same precision as the main calibration. Step 0 runs only
+#            in the seed=1 task (with set.seed(1)); other tasks skip it.
 #   seed   = integer seed, used for reproducibility and output file suffix
 #
 # Submitted at paper scale by 01_run_threshold_calibration.sbatch
@@ -126,52 +127,64 @@ alt_scenarios <- c("S2", "S3")
 # n=5,000, independent of n_sims used for the main grid search below.
 # =============================================================================
 
-cat("=== Step 0: D2 baseline check (power_floor justification) ===\n\n")
-
+# Step 0 does not depend on the array task (D2's true baseline is the same
+# in every task), so it runs once, on the seed=1 task only, with its own
+# fixed seed. It is purely diagnostic and does not feed into Step 1.
 n_D2_check_sims <- 5000
 
-check_D2_power <- function(scenario_truth, label) {
-  successes <- logical(n_D2_check_sims)
+if (seed == 1) {
+  set.seed(1)
+
+  cat("=== Step 0: D2 baseline check (power_floor justification) ===\n\n")
+
+
+  check_D2_power <- function(scenario_truth, label) {
+    successes <- logical(n_D2_check_sims)
   
-  for (i in seq_len(n_D2_check_sims)) {
-    trial_data <- sim_dte(n_c, n_t, lambda_c = scenario_truth$lambda_c,
-                          delay_time = scenario_truth$delay_time,
-                          post_delay_HR = scenario_truth$post_delay_HR,
-                          dist = "Weibull", gamma_c = scenario_truth$gamma_c)
-    trial_data <- add_recruitment_time(trial_data, rec_method = recruitment_model$method,
-                                       rec_period = recruitment_model$period,
-                                       rec_power = recruitment_model$power)
+    for (i in seq_len(n_D2_check_sims)) {
+      trial_data <- sim_dte(n_c, n_t, lambda_c = scenario_truth$lambda_c,
+                            delay_time = scenario_truth$delay_time,
+                            post_delay_HR = scenario_truth$post_delay_HR,
+                            dist = "Weibull", gamma_c = scenario_truth$gamma_c)
+      trial_data <- add_recruitment_time(trial_data, rec_method = recruitment_model$method,
+                                         rec_period = recruitment_model$period,
+                                         rec_power = recruitment_model$power)
     
-    out <- DTEAssurance:::apply_GSD_to_trial(n_c = n_c, n_t = n_t, trial_data = trial_data,
-                                             design = design, total_events = total_events,
-                                             GSD_model = GSD_model_efficacy,
-                                             analysis_model = analysis_model)
+      out <- DTEAssurance:::apply_GSD_to_trial(n_c = n_c, n_t = n_t, trial_data = trial_data,
+                                               design = design, total_events = total_events,
+                                               GSD_model = GSD_model_efficacy,
+                                               analysis_model = analysis_model)
     
-    successes[i] <- out$decision %in% c("Stop for efficacy", "Successful at final")
+      successes[i] <- out$decision %in% c("Stop for efficacy", "Successful at final")
+    }
+  
+    phat <- mean(successes)
+    se <- sqrt(phat * (1 - phat) / n_D2_check_sims)
+    ci <- phat + c(-1.96, 1.96) * se
+  
+    cat(sprintf("D2 power under %s: %.4f (95%% CI: %.4f - %.4f), n=%d\n",
+                label, phat, ci[1], ci[2], n_D2_check_sims))
+  
+    list(power = phat, se = se, ci = ci)
   }
-  
-  phat <- mean(successes)
-  se <- sqrt(phat * (1 - phat) / n_D2_check_sims)
-  ci <- phat + c(-1.96, 1.96) * se
-  
-  cat(sprintf("D2 power under %s: %.4f (95%% CI: %.4f - %.4f), n=%d\n",
-              label, phat, ci[1], ci[2], n_D2_check_sims))
-  
-  list(power = phat, se = se, ci = ci)
-}
 
-D2_check_S2 <- check_D2_power(scenarios$S2, "S2 (delayed)")
-D2_check_S3 <- check_D2_power(scenarios$S3, "S3 (immediate)")
+  D2_check_S2 <- check_D2_power(scenarios$S2, "S2 (delayed)")
+  D2_check_S3 <- check_D2_power(scenarios$S3, "S3 (immediate)")
 
-cat(sprintf("\nPre-specified power_floor = %.2f\n", power_floor))
-cat(sprintf("Margin below D2/S2 ceiling: %.4f\n", D2_check_S2$power - power_floor))
-cat(sprintf("Margin below D2/S3 ceiling: %.4f\n\n", D2_check_S3$power - power_floor))
+  cat(sprintf("\nPre-specified power_floor = %.2f\n", power_floor))
+  cat(sprintf("Margin below D2/S2 ceiling: %.4f\n", D2_check_S2$power - power_floor))
+  cat(sprintf("Margin below D2/S3 ceiling: %.4f\n\n", D2_check_S3$power - power_floor))
 
-if (D2_check_S2$power <= power_floor || D2_check_S3$power <= power_floor) {
-  warning("Step 0: power_floor is at or above D2's own baseline power under ",
-          "one or both alternative scenarios -- the constrained selection ",
-          "in Step 1 below is guaranteed to be infeasible. Check power_floor ",
-          "before proceeding.")
+  if (D2_check_S2$power <= power_floor || D2_check_S3$power <= power_floor) {
+    warning("Step 0: power_floor is at or above D2's own baseline power under ",
+            "one or both alternative scenarios -- the constrained selection ",
+            "in Step 1 below is guaranteed to be infeasible. Check power_floor ",
+            "before proceeding.")
+  }
+} else {
+  cat("Step 0 (D2 baseline check) only runs on seed=1; skipping here.\n\n")
+  D2_check_S2 <- NULL
+  D2_check_S3 <- NULL
 }
 
 # =============================================================================
