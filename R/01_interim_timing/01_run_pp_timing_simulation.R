@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 #
-# Table 2 / Figure 1 (PP timing sweep) -- HPC driver script.
+# Interim timing calibration (Section 5.2; Table 2 / Figure 1) -- HPC driver.
 #
 # This script contains NO function definitions of its own. It only:
 #   (1) defines the scenario-specific inputs (control/effect/recruitment
@@ -8,16 +8,20 @@
 #   (2) calls DTEAssurance::calibrate_BPP_timing(), and
 #   (3) saves the result (which already records its own settings/provenance).
 #
-# Usage: Rscript PP_Timing.R <n_sims> <seed>
+# Usage: Rscript 01_run_pp_timing_simulation.R <n_sims> <seed>
 #   n_sims = number of interim datasets simulated PER candidate IF
 #   seed   = integer seed, used both for reproducibility and as the output
 #            file suffix
+#
+# Submitted at paper scale by 01_run_pp_timing_simulation.sbatch
+# (50 tasks x 100 = 5,000 datasets per candidate IF). Writes
+# PP_timing_batch_<seed>.rds to the working directory.
 
 library(DTEAssurance)
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 2) {
-  stop("Usage: Rscript PP_Timing.R <n_sims> <seed>")
+  stop("Usage: Rscript 01_run_pp_timing_simulation.R <n_sims> <seed>")
 }
 n_sims <- as.numeric(args[1])
 seed   <- as.numeric(args[2])

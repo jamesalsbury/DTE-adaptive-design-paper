@@ -1,44 +1,34 @@
 #!/usr/bin/env Rscript
 #
-# Beta-Beta approximation to the pooled control-arm Weibull posterior.
+# Control-arm prior, step 2 of 2 (Section 5.1).
 #
-# This is the previously-missing reproducible step between:
-#   (1) the pooling + Weibull MCMC script (already found/exists), which
-#       produces posterior samples lambda2sample, gamma2sample, and
-#   (2) the control_model Beta-Beta hyperparameters actually used
-#       throughout DTEAssurance (t1_Beta_a/b, diff_Beta_a/b).
+# Beta-Beta approximation to the pooled control-arm Weibull posterior:
+# converts the posterior samples from 01_pool_and_fit_weibull_posterior.R
+# into the control_model Beta-Beta hyperparameters used throughout
+# DTEAssurance (t1_Beta_a/b, diff_Beta_a/b).
 #
-# Run this AFTER sourcing/running the pooling+MCMC script, so that
-# lambda2sample and gamma2sample already exist in the environment (or
-# load them from wherever they were saved -- see the loading block below
-# if you saved them to disk instead of keeping them in-session).
+# Run from this folder, after 01_pool_and_fit_weibull_posterior.R:
+#   Rscript 02_fit_beta_approximation.R
 #
 # Produces:
 #   - the fitted Beta hyperparameters (compare against control_model's
-#     current t1_Beta_a/b = 1499.487/1059.113, diff_Beta_a/b =
-#     1639.044/8098.961 -- if this script reproduces those numbers
-#     closely, that CONFIRMS this is indeed how they were derived)
+#     t1_Beta_a/b = 1499.487/1059.113, diff_Beta_a/b = 1639.044/8098.961)
 #   - the validity check: % of simulated (S(t1), Delta) draws that are
 #     probabilistically invalid (Delta > S(t1), i.e. S(t2) < 0)
 #   - marginal fit comparison (fitted Beta vs original MCMC-derived
 #     S(t1)/Delta samples)
 #   - the independence check (correlation between S(t1) and Delta in the
 #     true MCMC output, which the Beta-Beta construction assumes is ~0)
+#   - control_prior_beta_validity_check.rds
 
 # --- Landmark times (must match control_model$t1, control_model$t2) ---
 t1 <- 8
 t2 <- 12
 
-# --- If lambda2sample/gamma2sample aren't already in your session, load
-#     them here instead (uncomment and adjust as needed): ---
-# saved <- readRDS("path/to/saved_MCMC_output.rds")
-# lambda2sample <- saved$lambda2sample
-# gamma2sample  <- saved$gamma2sample
-
-if (!exists("lambda2sample") || !exists("gamma2sample")) {
-  stop("lambda2sample and/or gamma2sample not found in the environment. ",
-       "Run the pooling + Weibull MCMC script first (or load saved samples).")
-}
+# --- Posterior samples from 01_pool_and_fit_weibull_posterior.R ---
+saved <- readRDS("weibull_posterior_samples.rds")
+lambda2sample <- saved$lambda2sample
+gamma2sample  <- saved$gamma2sample
 
 cat(sprintf("Posterior sample size: %d\n", length(lambda2sample)))
 cat(sprintf("Landmark times: t1 = %d, t2 = %d\n\n", t1, t2))
@@ -79,7 +69,7 @@ cat("=== Fitted Beta hyperparameters (method of moments) ===\n")
 cat(sprintf("S(t1) ~ Beta(%.3f, %.3f)\n", fit_S1["alpha"], fit_S1["beta"]))
 cat(sprintf("Delta ~ Beta(%.3f, %.3f)\n\n", fit_Delta["alpha"], fit_Delta["beta"]))
 
-cat("Compare against control_model's current values:\n")
+cat("Compare against the control_model values used in the paper:\n")
 cat("  t1_Beta_a/b   = 1499.487 / 1059.113\n")
 cat("  diff_Beta_a/b = 1639.044 / 8098.961\n")
 cat("(Close agreement confirms this is how those numbers were derived.)\n\n")

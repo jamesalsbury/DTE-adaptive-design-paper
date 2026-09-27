@@ -10,6 +10,7 @@
 # though only interim (IF=0.5) data are available.
 #
 # Cheap -- 3 MCMC fits, no HPC needed.
+# Run from this folder:  Rscript 01_representative_examples.R
 
 library(DTEAssurance)
 

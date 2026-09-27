@@ -11,7 +11,8 @@
 # thirds by state, so each state's summary is estimated independently
 # and precisely, then recombined with different weights.
 #
-# Usage: Rscript reweight_S4.R <path to table4_S4_combined.rds>
+# Usage: Rscript 06_reweight_for_table4_and_table5.R <path to table4_S4_combined.rds>
+# (table4_S4_combined.rds is produced by 05_aggregate_table4.R S4)
 
 args <- commandArgs(trailingOnly = TRUE)
 combined_file <- if (length(args) >= 1) args[1] else "table4_S4_combined.rds"

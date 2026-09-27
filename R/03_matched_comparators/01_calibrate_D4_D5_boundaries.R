@@ -1,13 +1,19 @@
 #!/usr/bin/env Rscript
 #
-# D4 and D5 futility boundary calibration, using the REAL D3 null futility
-# rate from the completed Eq11_Calibration.R run (kappa* = 0.20, D3's null
+# Matched comparator calibration (Section 5.3): D4 and D5 futility boundary
+# calibration, using the REAL D3 null futility rate from the threshold
+# calibration stage (02_threshold_calibration; kappa* = 0.20, D3's null
 # P_early_fut = 0.8244667) as the matching target.
 #
-# No MCMC involved (calibrate_matched_futility_boundary/single_matched_futility_rep
+# No MCMC involved (DTEAssurance::calibrate_matched_futility_boundary/single_matched_futility_rep
 # just simulate a trial and compute one Z at the futility look) -- this can
 # run locally, no HPC needed. Cheap enough to use much higher precision than
 # the original manuscript's 2,000-dataset calibration.
+#
+# Run from this folder:  Rscript 01_calibrate_D4_D5_boundaries.R
+# Writes D4_D5_calibration_results.rds; the resulting boundaries are the
+# D4_boundary_Z / D5_boundary_Z values hard-coded in
+# 04_operating_characteristics/0{1-4}_run_scenario_*.R.
 
 library(DTEAssurance)
 
@@ -21,7 +27,7 @@ futility_IF <- 0.5
 recruitment_model <- list(method = "power", period = 24, power = 1)
 
 # --- Target: D3's REAL null futility rate at kappa* = 0.20 (from the
-#     completed Eq11_Calibration.R real HPC run) ---
+#     completed threshold calibration HPC run) ---
 target_null_futility_rate <- 0.8244667
 
 cat(sprintf("Target null futility rate (matching D3 at kappa*=0.20): %.4f\n\n",
@@ -51,7 +57,7 @@ analysis_model_D4 <- list(method = "LRT", alpha = 0.025,
 
 cat("=== Calibrating D4 (matched log-rank futility design) ===\n")
 t0 <- Sys.time()
-D4_result <- DTEAssurance:::calibrate_matched_futility_boundary(
+D4_result <- DTEAssurance::calibrate_matched_futility_boundary(
   n_c = n_c, n_t = n_t,
   recruitment_model = recruitment_model,
   futility_IF = futility_IF, total_events = total_events,
@@ -78,7 +84,7 @@ analysis_model_D5 <- list(method = "MW", alpha = 0.025,
 
 cat(sprintf("=== Calibrating D5 (matched MW futility design, t_star=%.1f) ===\n", t_star_D5))
 t0 <- Sys.time()
-D5_result <- DTEAssurance:::calibrate_matched_futility_boundary(
+D5_result <- DTEAssurance::calibrate_matched_futility_boundary(
   n_c = n_c, n_t = n_t,
   recruitment_model = recruitment_model,
   futility_IF = futility_IF, total_events = total_events,

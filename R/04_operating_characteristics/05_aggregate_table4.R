@@ -5,8 +5,11 @@
 # Works for S1/S2/S3 (fixed scenarios) and S4 (stratified) alike -- S4's
 # extra `state` column is carried through if present, but not required.
 #
-# Usage: Rscript aggregate_table4_5.R <scenario e.g. S1> <directory> <output_file>
-# e.g.:  Rscript aggregate_table4_5.R S1 . table4_S1_combined.rds
+# Run once per scenario (S1-S4). For S4 the Table 4 row comes from
+# 06_reweight_for_table4_and_table5.R, which reads this script's output.
+#
+# Usage: Rscript 05_aggregate_table4.R <scenario e.g. S1> <directory> <output_file>
+# e.g.:  Rscript 05_aggregate_table4.R S1 . table4_S1_combined.rds
 
 args <- commandArgs(trailingOnly = TRUE)
 scenario  <- if (length(args) >= 1) args[1] else stop("Specify scenario, e.g. S1")

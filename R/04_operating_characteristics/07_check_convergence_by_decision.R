@@ -3,12 +3,15 @@
 # Check whether D3's non-converged interim MCMC fits are concentrated
 # among particular decision outcomes, or spread roughly evenly.
 #
-# Run this in the same session as aggregate_table4_5.R (uses the
-# `combined` object it produces), or load a saved *_combined.rds file.
+# Run once per scenario on the output of 05_aggregate_table4.R.
+#
+# Usage: Rscript 07_check_convergence_by_decision.R <path to table4_S{n}_combined.rds>
 
-# If not already in your session:
-# result <- readRDS("table4_S2_combined.rds")
-# combined <- result$combined
+args <- commandArgs(trailingOnly = TRUE)
+combined_file <- if (length(args) >= 1) args[1] else stop("Specify a table4_S{n}_combined.rds file")
+
+result <- readRDS(combined_file)
+combined <- result$combined
 
 d3 <- combined[combined$design == "D3", ]
 

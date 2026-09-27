@@ -5,12 +5,16 @@
 # finalized calibrated parameters (kappa*=0.20, D4/D5 matched Z-cutoffs,
 # t_star=2 for D5).
 #
-# Usage: Rscript Table4_S3.R <n_sims> <seed>
+# Usage: Rscript 03_run_scenario_immediate.R <n_sims> <seed>
+#
+# Submitted at paper scale by 03_run_scenario_immediate.sbatch (50 tasks x 2,000 =
+# 100,000 replicates). Writes table4_S3_batch_<seed>.rds to the working
+# directory; combine with 05_aggregate_table4.R.
 
 library(DTEAssurance)
 
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) != 2) stop("Usage: Rscript Table4_S3.R <n_sims> <seed>")
+if (length(args) != 2) stop("Usage: Rscript 03_run_scenario_immediate.R <n_sims> <seed>")
 n_sims <- as.numeric(args[1])
 seed   <- as.numeric(args[2])
 n_cores <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK", unset = "1"))

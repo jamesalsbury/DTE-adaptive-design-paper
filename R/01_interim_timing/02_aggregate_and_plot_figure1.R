@@ -1,17 +1,22 @@
 #!/usr/bin/env Rscript
 #
-# Local analysis of PP_Timing results.
+# Interim timing calibration (Section 5.2): aggregation + Table 2 + Figure 1.
 #
-# Run this from the directory containing either:
+# Single source of truth for combining the PP_timing_batch_*.rds files
+# written by 01_run_pp_timing_simulation.R. Run this from the directory
+# containing either:
 #   (a) the 50 raw PP_timing_batch_*.rds files, OR
 #   (b) an already-combined PP_timing_combined.rds
-# It will auto-detect which you have and aggregate if needed.
+# It will auto-detect which you have and aggregate if needed (checking that
+# all batches were run with identical settings before combining).
 #
 # Produces:
-#   - a console summary (mean, SD, quartiles) per candidate IF
-#   - a PNG with one histogram panel per candidate IF (Figure 1 draft)
+#   - PP_timing_combined.rds
+#   - a console summary (mean, SD, quantiles) per candidate IF (Table 2)
+#   - Figure1_PP_timing_histograms.png: one histogram panel per candidate
+#     IF, with identical bin widths and a shared y-axis across panels
 #
-# Usage: Rscript analyze_PP_timing_local.R [directory]  (default: current dir)
+# Usage: Rscript 02_aggregate_and_plot_figure1.R [directory]  (default: current dir)
 
 args <- commandArgs(trailingOnly = TRUE)
 work_dir <- if (length(args) >= 1) args[1] else "."
@@ -30,7 +35,7 @@ if (file.exists(combined_file)) {
   
   batches <- lapply(batch_files, readRDS)
   
-  # --- Consistency checks (same logic as aggregate_PP_timing.R) ---
+  # --- Consistency checks across batches ---
   ref_settings <- batches[[1]]$settings
   
   check_field_consistent <- function(field_name, extractor) {
@@ -99,20 +104,26 @@ summary_df <- do.call(rbind, lapply(result$outcome_list, function(x) {
 }))
 print(summary_df, row.names = FALSE, digits = 3)
 
-# --- Histograms: one panel per candidate IF ---
+# --- Figure 1: one histogram panel per candidate IF ---
+# Same bin edges in every panel, and a common y-axis limit so panel
+# heights are directly comparable across candidate IFs.
+
+bin_breaks <- seq(0, 1, by = 0.05)
+bin_counts <- lapply(result$outcome_list, function(x) {
+  hist(x$BPP_values, breaks = bin_breaks, plot = FALSE)$counts
+})
+y_max <- max(unlist(bin_counts))
 
 n_candidates <- length(result$outcome_list)
-png_file <- file.path(work_dir, "PP_timing_histograms.png")
+png_file <- file.path(work_dir, "Figure1_PP_timing_histograms.png")
 png(png_file, width = 1000, height = 700, res = 120)
 par(mfrow = c(2, ceiling(n_candidates / 2)), mar = c(4, 4, 3, 1))
 
 for (x in result$outcome_list) {
-  hist(x$BPP_values, breaks = 20, xlim = c(0, 1),
+  hist(x$BPP_values, breaks = bin_breaks, xlim = c(0, 1), ylim = c(0, y_max),
        main = sprintf("IF = %.1f (n=%d)", x$IF, length(x$BPP_values)),
        xlab = "PP", col = "grey80", border = "white")
 }
 
 dev.off()
-cat("\nSaved histogram panel to", png_file, "\n")
-cat("\nLook for: increasingly bimodal/polarised shape as IF increases,\n")
-cat("consistent with 'approximately uniform early, polarising toward 0/1 later'.\n")
+cat("\nSaved Figure 1 to", png_file, "\n")
