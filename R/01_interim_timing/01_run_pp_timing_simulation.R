@@ -16,6 +16,7 @@
 # Submitted at paper scale by 01_run_pp_timing_simulation.sbatch
 # (50 tasks x 100 = 5,000 datasets per candidate IF). Writes
 # PP_timing_batch_<seed>.rds to the working directory.
+# For a quick local test before submitting at full scale, reduce NSIMS to ~5 and array size to 1-2 tasks.
 
 library(DTEAssurance)
 

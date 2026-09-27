@@ -48,12 +48,12 @@ R/
 |---|---|---|
 | Control-arm prior hyperparameters (Section 5.1) | `00_control_prior/01_pool_and_fit_weibull_posterior.R`, `00_control_prior/02_fit_beta_approximation.R` | Local |
 | Table 2 / Figure 1 (interim timing) | `01_interim_timing/01_run_pp_timing_simulation.R` (+ `.sbatch`), `01_interim_timing/02_aggregate_and_plot_figure1.R` | HPC: 50 tasks x 100 = 5,000 datasets per candidate IF |
-| Table 3 / kappa* selection | `02_threshold_calibration/` (scripts to be added) | HPC: 50 tasks x 300 = 15,000 per scenario |
+| Table 3 / kappa* selection (incl. D2 power-floor check) | `02_threshold_calibration/01_run_threshold_calibration.R` (+ `.sbatch`), `02_aggregate_and_build_table3.R` | HPC: 50 tasks x 300 = 15,000 per scenario |
 | D4/D5 futility boundaries | `03_matched_comparators/01_calibrate_D4_D5_boundaries.R` | Local, 20,000 datasets per scenario |
 | Table 4 (S1-S3) | `04_operating_characteristics/0{1,2,3}_run_scenario_*.R` (+ `.sbatch`), `05_aggregate_table4.R` | HPC: 50 tasks x 2,000 = 100,000 per scenario |
 | Table 4 (S4) + Table 5 | `04_operating_characteristics/04_run_scenario_prior_predictive.R` (+ `.sbatch`), `05_aggregate_table4.R`, `06_reweight_for_table4_and_table5.R` | HPC: 50 tasks x 2,000 = 100,000 |
 | D3 convergence-by-decision check | `04_operating_characteristics/07_check_convergence_by_decision.R` | Local |
-| Posterior state illustration | `05_posterior_state_illustration/01_representative_examples.R` | Local |
+| Posterior state tables (main text + Appendix robustness check) | `05_posterior_state_illustration/01_representative_and_multiseed_check.R` | Local |
 
 ## Reproducing the results
 
@@ -72,6 +72,7 @@ directory.
    script, which checks that every batch was run with identical settings
    before combining:
    - `Rscript 02_aggregate_and_plot_figure1.R` (in `01_interim_timing/`)
+   - `Rscript 02_aggregate_and_build_table3.R` (in `02_threshold_calibration/`)
    - `Rscript 05_aggregate_table4.R S1` (and `S2`, `S3`, `S4`) in
      `04_operating_characteristics/`, then
      `Rscript 06_reweight_for_table4_and_table5.R table4_S4_combined.rds`

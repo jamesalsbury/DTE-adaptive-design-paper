@@ -16,6 +16,7 @@
 # Submitted at paper scale by 04_run_scenario_prior_predictive.sbatch (50 tasks x 2,000 =
 # 100,000 replicates). Writes table4_S4_batch_<seed>.rds to the working
 # directory; combine with 05_aggregate_table4.R.
+# For a quick local test before submitting at full scale, reduce NSIMS to ~5 and array size to 1-2 tasks.
 
 library(DTEAssurance)
 
