@@ -5,12 +5,12 @@
 # a single set of raw per-replicate data frames, one per scenario (null,
 # S2, S3), ready to pass to summarize_grid_by_lambda() / select_lambda_star().
 #
-# As with aggregate_PP_timing.R, this checks that every batch used
+# As with 01_interim_timing/02_aggregate_and_plot_figure1.R, this checks that every batch used
 # consistent settings before combining, and aborts rather than silently
 # mixing batches run under different settings.
 #
-# Usage: Rscript aggregate_eq11.R <directory containing batch files> <output_file>
-# e.g.:  Rscript aggregate_eq11.R . eq11_combined.rds
+# Usage: Rscript 02_aggregate_and_build_table3.R <directory containing batch files> <output_file>
+# e.g.:  Rscript 02_aggregate_and_build_table3.R . eq11_combined.rds
 
 args <- commandArgs(trailingOnly = TRUE)
 batch_dir <- if (length(args) >= 1) args[1] else "."

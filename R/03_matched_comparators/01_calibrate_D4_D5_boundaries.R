@@ -1,13 +1,17 @@
 #!/usr/bin/env Rscript
 #
-# D4 and D5 futility boundary calibration, using the REAL D3 null futility
-# rate from the completed Eq11_Calibration.R run (kappa* = 0.20, D3's null
-# P_early_fut = 0.8244667) as the matching target.
+# D4 and D5 futility boundary calibration, using the real kappa*=0.20
+# result from the threshold-calibration stage (D3's null futility rate
+# = 0.8245) as the matching target.
 #
-# No MCMC involved (calibrate_matched_futility_boundary/single_matched_futility_rep
-# just simulate a trial and compute one Z at the futility look) -- this can
-# run locally, no HPC needed. Cheap enough to use much higher precision than
-# the original manuscript's 2,000-dataset calibration.
+# No MCMC involved (calibrate_matched_futility_boundary()/
+# single_matched_futility_rep() just simulate a trial and compute one Z
+# at the futility look) -- runs locally, no HPC needed.
+#
+# Run from this folder:  Rscript 01_calibrate_D4_D5_boundaries.R
+# Writes D4_D5_calibration_results.rds; the resulting boundaries are the
+# D4_boundary_Z / D5_boundary_Z values hard-coded in
+# 04_operating_characteristics/0{1-4}_run_scenario_*.R.
 
 library(DTEAssurance)
 
@@ -20,8 +24,8 @@ futility_IF <- 0.5
 
 recruitment_model <- list(method = "power", period = 24, power = 1)
 
-# --- Target: D3's REAL null futility rate at kappa* = 0.20 (from the
-#     completed Eq11_Calibration.R real HPC run) ---
+# --- Target: D3's real null futility rate at kappa* = 0.20 (from
+#     01_run_threshold_calibration.R) ---
 target_null_futility_rate <- 0.8244667
 
 cat(sprintf("Target null futility rate (matching D3 at kappa*=0.20): %.4f\n\n",
@@ -38,8 +42,7 @@ scenarios <- list(
               delay_time = 0, post_delay_HR = 0.8)
 )
 
-n_sims <- 20000   # cheap (no MCMC), so generous precision relative to the
-# manuscript's original 2,000-dataset D4 calibration
+n_sims <- 20000   # cheap (no MCMC), generous precision
 n_cores <- max(1, parallel::detectCores() - 1)
 
 cat(sprintf("n_sims = %d, n_cores = %d\n\n", n_sims, n_cores))
@@ -51,7 +54,7 @@ analysis_model_D4 <- list(method = "LRT", alpha = 0.025,
 
 cat("=== Calibrating D4 (matched log-rank futility design) ===\n")
 t0 <- Sys.time()
-D4_result <- DTEAssurance:::calibrate_matched_futility_boundary(
+D4_result <- DTEAssurance::calibrate_matched_futility_boundary(
   n_c = n_c, n_t = n_t,
   recruitment_model = recruitment_model,
   futility_IF = futility_IF, total_events = total_events,
@@ -67,10 +70,22 @@ print(D4_result$scenario_futility_rates)
 cat("\n")
 
 # --- D5: matched modestly-weighted log-rank (MW) futility design ---
-# NOTE: t_star = 3 used here provisionally (prior median elicited delay).
-# CONFIRM this is the committed value before treating this result as final.
+#
+# t_star = 2 months (CONFIRMED, not provisional). Rationale: accounting
+# for the elicited probability of an immediate (T=0) rather than delayed
+# effect (1-P_DTE=0.3), 42% of the prior mass over all effect-bearing
+# scenarios corresponds to a true delay of 2 months or less -- close to
+# the mixture median (~2.1 months) -- rather than the conditional median
+# delay alone (3 months). Following Magirr and Burman's guidance to set
+# t* closer to zero under genuine uncertainty about whether a delay
+# exists at all. See manuscript Section 5.3.3 ("Choice of t* for D5").
+#
+# This value (t_star=2) is what produces D5_boundary_Z = 0.9424, the
+# figure used throughout Table 4/5 (01-04_run_scenario_*.R). An earlier
+# provisional run at t_star=3 gave a DIFFERENT boundary (0.9393) -- do
+# not reuse that value; t_star=2 is the committed, final choice.
 
-t_star_D5 <- 3
+t_star_D5 <- 2
 
 analysis_model_D5 <- list(method = "MW", alpha = 0.025,
                           alternative_hypothesis = "one.sided",
@@ -78,7 +93,7 @@ analysis_model_D5 <- list(method = "MW", alpha = 0.025,
 
 cat(sprintf("=== Calibrating D5 (matched MW futility design, t_star=%.1f) ===\n", t_star_D5))
 t0 <- Sys.time()
-D5_result <- DTEAssurance:::calibrate_matched_futility_boundary(
+D5_result <- DTEAssurance::calibrate_matched_futility_boundary(
   n_c = n_c, n_t = n_t,
   recruitment_model = recruitment_model,
   futility_IF = futility_IF, total_events = total_events,
@@ -103,10 +118,12 @@ for (scen in names(scenarios)) {
               D4_result$scenario_futility_rates[scen],
               D5_result$scenario_futility_rates[scen]))
 }
-cat("\nBoth should show ~matching null futility rates (by construction) but\n")
-cat("differ under S2 (delayed): D5's MW-based boundary should trigger futility\n")
-cat("LESS often under a genuine delayed effect if MW is behaving as intended\n")
-cat("(protecting power under the scenario it's specifically designed for).\n")
+
+cat("\nCompare against the values actually used in 01-04_run_scenario_*.R:\n")
+cat("  D4_boundary_Z = 0.9386,  D5_boundary_Z = 0.9424 (t_star=2)\n")
+cat("If this run's D4/D5 boundaries differ from the above, investigate\n")
+cat("before trusting downstream results -- these are the numbers every\n")
+cat("Table 4/5 script assumes.\n")
 
 saveRDS(list(D4 = D4_result, D5 = D5_result, target = target_null_futility_rate,
              t_star_D5 = t_star_D5),

@@ -15,6 +15,9 @@
 # "simplify" this to reuse one replicate from Part B as the Part A example
 # -- doing so would produce different numbers from those already published
 # in the manuscript text.
+#
+# Cheap (a handful of MCMC fits), no HPC needed.
+# Run from this folder:  Rscript 01_representative_and_multiseed_check.R
 
 library(DTEAssurance)
 

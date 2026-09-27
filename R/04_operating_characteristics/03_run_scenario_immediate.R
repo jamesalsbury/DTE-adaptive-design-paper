@@ -1,16 +1,21 @@
 #!/usr/bin/env Rscript
 #
-# Table 4/5, Scenario S2 (delayed treatment effect: 3-month delay, HR=0.8).
+# Table 4/5, Scenario S3 (immediate treatment effect: no delay, HR=0.8).
 # Runs each simulated trial through all five designs (D1-D5), using the
 # finalized calibrated parameters (kappa*=0.20, D4/D5 matched Z-cutoffs,
 # t_star=2 for D5).
 #
-# Usage: Rscript Table4_S2.R <n_sims> <seed>
+# Usage: Rscript 03_run_scenario_immediate.R <n_sims> <seed>
+#
+# Submitted at paper scale by 03_run_scenario_immediate.sbatch (50 tasks x 2,000 =
+# 100,000 replicates). Writes table4_S3_batch_<seed>.rds to the working
+# directory; combine with 05_aggregate_table4.R.
+# For a quick local test before submitting at full scale, reduce NSIMS to ~5 and array size to 1-2 tasks.
 
 library(DTEAssurance)
 
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) != 2) stop("Usage: Rscript Table4_S2.R <n_sims> <seed>")
+if (length(args) != 2) stop("Usage: Rscript 03_run_scenario_immediate.R <n_sims> <seed>")
 n_sims <- as.numeric(args[1])
 seed   <- as.numeric(args[2])
 n_cores <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK", unset = "1"))
@@ -63,7 +68,7 @@ cat(sprintf("kappa*=%.2f, D4_Z=%.4f, D5_Z=%.4f\n\n", kappa_star, D4_boundary_Z, 
 
 # --- Per-replicate ---
 run_one_replicate <- function(i) {
-  trial_data <- sim_dte(n_c, n_t, 0.07452199, delay_time = 3, post_delay_HR = 0.8,
+  trial_data <- sim_dte(n_c, n_t, 0.07452199, delay_time = 0, post_delay_HR = 0.8,
                         dist = "Weibull", gamma_c = 1.210833)
   trial_data <- add_recruitment_time(trial_data, rec_method = recruitment_model$method,
                                      rec_period = recruitment_model$period,
@@ -100,7 +105,7 @@ run_one_replicate <- function(i) {
   res
 }
 
-cat(sprintf("Running S2 (n_sims=%d)...\n", n_sims))
+cat(sprintf("Running S3 (n_sims=%d)...\n", n_sims))
 t0 <- Sys.time()
 if (n_cores > 1) {
   reps <- parallel::mclapply(seq_len(n_sims), run_one_replicate, mc.cores = n_cores)
@@ -108,9 +113,9 @@ if (n_cores > 1) {
   reps <- lapply(seq_len(n_sims), run_one_replicate)
 }
 results <- do.call(rbind, reps)
-cat(sprintf("S2 took %.1f min\n", as.numeric(difftime(Sys.time(), t0, units = "mins"))))
+cat(sprintf("S3 took %.1f min\n", as.numeric(difftime(Sys.time(), t0, units = "mins"))))
 
-settings <- list(scenario = "S2", n_c = n_c, n_t = n_t, total_events = total_events,
+settings <- list(scenario = "S3", n_c = n_c, n_t = n_t, total_events = total_events,
                  futility_IF = futility_IF, kappa_star = kappa_star,
                  D4_boundary_Z = D4_boundary_Z, D5_boundary_Z = D5_boundary_Z,
                  t_star_D5 = 2, n_sims = n_sims, n_cores = n_cores, seed = seed,
@@ -119,5 +124,5 @@ settings <- list(scenario = "S2", n_c = n_c, n_t = n_t, total_events = total_eve
                  timestamp = as.character(Sys.time()))
 
 saveRDS(list(results = results, settings = settings),
-        sprintf("table4_S2_batch_%04d.rds", seed))
-cat(sprintf("Saved to table4_S2_batch_%04d.rds\n", seed))
+        sprintf("table4_S3_batch_%04d.rds", seed))
+cat(sprintf("Saved to table4_S3_batch_%04d.rds\n", seed))

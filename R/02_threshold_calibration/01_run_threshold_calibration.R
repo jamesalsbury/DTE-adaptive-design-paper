@@ -28,8 +28,10 @@
 #            the same precision as the main calibration.
 #   seed   = integer seed, used for reproducibility and output file suffix
 #
-# For a quick local test before submitting at full scale, reduce n_sims to
-# ~5 (and, if running via SLURM, the array size to 1-2 tasks).
+# Submitted at paper scale by 01_run_threshold_calibration.sbatch
+# (50 tasks x 300 = 15,000 replicates per scenario); combine the
+# eq11_calibration_batch_<seed>.rds outputs with 02_aggregate_and_build_table3.R.
+# For a quick local test before submitting at full scale, reduce NSIMS to ~5 and array size to 1-2 tasks.
 
 library(DTEAssurance)
 
@@ -140,10 +142,10 @@ check_D2_power <- function(scenario_truth, label) {
                                        rec_period = recruitment_model$period,
                                        rec_power = recruitment_model$power)
     
-    out <- apply_GSD_to_trial(n_c = n_c, n_t = n_t, trial_data = trial_data,
-                              design = design, total_events = total_events,
-                              GSD_model = GSD_model_efficacy,
-                              analysis_model = analysis_model)
+    out <- DTEAssurance:::apply_GSD_to_trial(n_c = n_c, n_t = n_t, trial_data = trial_data,
+                                             design = design, total_events = total_events,
+                                             GSD_model = GSD_model_efficacy,
+                                             analysis_model = analysis_model)
     
     successes[i] <- out$decision %in% c("Stop for efficacy", "Successful at final")
   }
