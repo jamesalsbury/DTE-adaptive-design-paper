@@ -1,19 +1,22 @@
 #!/usr/bin/env Rscript
 #
-# Representative posterior state probabilities (Section 4.2).
+# Posterior state probability illustration (Section 4.2 / Section 5 / Appendix).
 #
-# For one representative interim dataset under each of the three
-# data-generating truths used throughout the case study (null, immediate,
-# delayed -- same parameters as S1/S2/S3), fits the posterior via
-# update_priors() and reports P(Z=k | interim data), directly demonstrating
-# that the posterior correctly favours the true underlying state even
-# though only interim (IF=0.5) data are available.
+# Two parts, sharing the same setup and simulate-and-fit helper:
 #
-# Cheap -- 3 MCMC fits, no HPC needed.
+#   Part A: ONE representative interim dataset per scenario (seed=42),
+#           reproducing the main-text Table (\label{tab:posterior_states}).
+#   Part B: FIVE independent interim datasets per scenario (seeds 1-5, a
+#           DIFFERENT seeding scheme from Part A), reproducing the Appendix
+#           robustness-check table (\label{tab:posterior_states_multiseed}).
+#
+# IMPORTANT: Part A and Part B intentionally use different seeds/seeding
+# schemes, matching how each table was originally generated. Do not
+# "simplify" this to reuse one replicate from Part B as the Part A example
+# -- doing so would produce different numbers from those already published
+# in the manuscript text.
 
 library(DTEAssurance)
-
-set.seed(42)
 
 n_c <- 600
 n_t <- 600
@@ -33,20 +36,17 @@ effect_model <- list(delay_SHELF = SHELF::fitdist(c(2, 3, 4), probs = c(0.25, 0.
 
 recruitment_model <- list(method = "power", period = 24, power = 1)
 
-# --- Same true data-generating parameters as S1/S2/S3 ---
-
+# Same three data-generating truths as S1/S2/S3 throughout the case study.
 scenarios <- list(
   "Null (S1 truth)"      = list(delay_time = 0, post_delay_HR = 1),
   "Immediate (S3 truth)" = list(delay_time = 0, post_delay_HR = 0.8),
   "Delayed (S2 truth)"   = list(delay_time = 3, post_delay_HR = 0.8)
 )
 
-results <- list()
+# --- Shared helper: simulate one interim dataset under a given truth,
+#     fit via update_priors(), return the posterior state probabilities ---
 
-for (label in names(scenarios)) {
-  sc <- scenarios[[label]]
-  cat(sprintf("=== %s ===\n", label))
-  
+simulate_and_fit <- function(sc) {
   trial_data <- sim_dte(n_c, n_t, lambda_c = 0.07452199, delay_time = sc$delay_time,
                         post_delay_HR = sc$post_delay_HR, dist = "Weibull", gamma_c = 1.210833)
   trial_data <- add_recruitment_time(trial_data, rec_method = recruitment_model$method,
@@ -61,40 +61,80 @@ for (label in names(scenarios)) {
   eligible_df$survival_time <- ifelse(eligible_df$status, eligible_df$time,
                                       t_interim - eligible_df$rec_time)
   
-  cat(sprintf("  Interim dataset: %d patients enrolled, %d events observed, t=%.2f months\n",
-              nrow(eligible_df), sum(eligible_df$status), t_interim))
-  
   posterior_samples <- update_priors(eligible_df,
                                      control_model = control_model,
                                      effect_model  = effect_model,
                                      n_samples     = 1000)
   
-  Z_probs <- attr(posterior_samples, "Z_probs")
-  converged <- attr(posterior_samples, "converged")
-  
-  cat(sprintf("  Converged: %s\n", converged))
-  cat(sprintf("  P(Z=1, null)      = %.4f\n", Z_probs["P_Z1"]))
-  cat(sprintf("  P(Z=2, immediate) = %.4f\n", Z_probs["P_Z2"]))
-  cat(sprintf("  P(Z=3, delayed)   = %.4f\n\n", Z_probs["P_Z3"]))
-  
-  results[[label]] <- list(
-    n_enrolled = nrow(eligible_df),
-    n_events = sum(eligible_df$status),
-    t_interim = t_interim,
-    Z_probs = Z_probs,
-    converged = converged
-  )
+  attr(posterior_samples, "Z_probs")
 }
 
-cat("=== Summary table (for Section 4.2) ===\n\n")
-summary_df <- do.call(rbind, lapply(names(results), function(label) {
-  r <- results[[label]]
-  data.frame(Scenario = label,
-             P_Z1_null = r$Z_probs["P_Z1"],
-             P_Z2_immediate = r$Z_probs["P_Z2"],
-             P_Z3_delayed = r$Z_probs["P_Z3"])
-}))
-print(summary_df, row.names = FALSE, digits = 4)
+# =============================================================================
+# PART A: representative example (seed=42) -- reproduces the main-text table
+# =============================================================================
 
-saveRDS(results, "representative_posterior_states.rds")
-cat("\nSaved to representative_posterior_states.rds\n")
+cat("=== Part A: Representative example (seed=42) ===\n\n")
+
+set.seed(42)
+representative_results <- list()
+for (label in names(scenarios)) {
+  Z_probs <- simulate_and_fit(scenarios[[label]])
+  representative_results[[label]] <- Z_probs
+  cat(sprintf("%s: P(Z=1)=%.4f  P(Z=2)=%.4f  P(Z=3)=%.4f\n",
+              label, Z_probs["P_Z1"], Z_probs["P_Z2"], Z_probs["P_Z3"]))
+}
+
+representative_table <- do.call(rbind, lapply(names(representative_results), function(label) {
+  r <- representative_results[[label]]
+  data.frame(Scenario = label, P_Z1 = r["P_Z1"], P_Z2 = r["P_Z2"], P_Z3 = r["P_Z3"])
+}))
+
+cat("\nCompare against manuscript Table (tab:posterior_states):\n")
+cat("  S1 (null):      0.1685 / 0.1705 / 0.6610\n")
+cat("  S3 (immediate): 0.0110 / 0.0765 / 0.9125\n")
+cat("  S2 (delayed):   0.0010 / 0.2495 / 0.7495\n\n")
+
+# =============================================================================
+# PART B: 5-seed robustness check -- reproduces the Appendix table
+# =============================================================================
+
+cat("=== Part B: 5-seed robustness check ===\n\n")
+
+n_seeds <- 5
+multiseed_results <- data.frame()
+
+for (label in names(scenarios)) {
+  cat(sprintf("--- %s ---\n", label))
+  for (seed in 1:n_seeds) {
+    # Different seeding scheme from Part A -- intentional, matches how the
+    # Appendix table was originally generated.
+    set.seed(seed * 100 + which(names(scenarios) == label))
+    
+    Z_probs <- simulate_and_fit(scenarios[[label]])
+    
+    row <- data.frame(Scenario = label, Seed = seed,
+                      P_Z1 = Z_probs["P_Z1"], P_Z2 = Z_probs["P_Z2"], P_Z3 = Z_probs["P_Z3"])
+    multiseed_results <- rbind(multiseed_results, row)
+    
+    cat(sprintf("  seed %d: P(Z1)=%.3f  P(Z2)=%.3f  P(Z3)=%.3f\n",
+                seed, Z_probs["P_Z1"], Z_probs["P_Z2"], Z_probs["P_Z3"]))
+  }
+  cat("\n")
+}
+
+cat("=== Mean posterior state probabilities across 5 seeds, per scenario ===\n\n")
+means <- aggregate(cbind(P_Z1, P_Z2, P_Z3) ~ Scenario, data = multiseed_results, FUN = mean)
+print(means, row.names = FALSE, digits = 3)
+
+cat("\nCompare against manuscript Appendix Table (tab:posterior_states_multiseed) means:\n")
+cat("  S1 (null):      0.312 / 0.113 / 0.575\n")
+cat("  S3 (immediate): 0.028 / 0.575 / 0.397\n")
+cat("  S2 (delayed):   0.069 / 0.270 / 0.662\n")
+
+# --- Save both parts together ---
+
+saveRDS(list(representative_table = representative_table,
+             multiseed_results = multiseed_results,
+             multiseed_means = means),
+        "posterior_state_illustration.rds")
+cat("\nSaved to posterior_state_illustration.rds\n")
